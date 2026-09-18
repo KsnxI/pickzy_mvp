@@ -15,6 +15,7 @@ import {
 
 import AuthPage from './pages/AuthPage'
 import HomePage from './pages/HomePage'
+import PlacePage from './pages/PlacePage'
 
 function App() {
     const [user, setUser] = useState<User | null>(null)
@@ -107,6 +108,17 @@ function App() {
                                 to="/auth"
                                 replace
                             />
+                        )
+                    }
+                />
+
+                <Route
+                    path="/place/:id"
+                    element={
+                        user ? (
+                            <PlacePage />
+                        ) : (
+                            <Navigate to="/auth" replace />
                         )
                     }
                 />

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 
-import { logout } from '../api'
 import FilterDropdown from '../components/FilterDropdown'
 import Header from '../components/Header'
 import PlaceCard from '../components/PlaceCard'
 import { places } from '../data/places'
 import type { User } from '../api'
+import type { UserPreferences } from '../data/preferences'
 
 type HomePageProps = {
     user: User
@@ -23,8 +23,61 @@ export default function HomePage({
     const [price, setPrice] = useState('')
     const [rating, setRating] = useState('')
 
+    const [surveyPreferences, setSurveyPreferences] =
+        useState<UserPreferences | null>(() => {
+            const savedPreferences = localStorage.getItem(
+                `pickzy_preferences_${user.id}`,
+            )
+
+            if (!savedPreferences) {
+                return null
+            }
+
+            try {
+                return JSON.parse(savedPreferences) as UserPreferences
+            } catch {
+                return null
+            }
+        })
+
     const filteredPlaces = useMemo(() => {
         return places.filter((place) => {
+            /*
+             * ФИЛЬТРЫ ИЗ ОПРОСА
+             *
+             * Если пользователь выбрал:
+             * "Неважно" или "Другое" —
+             * этот конкретный параметр не фильтруется.
+             */
+
+            const matchesSurveyAtmosphere =
+                !surveyPreferences ||
+                surveyPreferences.atmosphere === 'Неважно' ||
+                surveyPreferences.atmosphere === 'Другое' ||
+                place.atmosphere === surveyPreferences.atmosphere
+
+            const matchesSurveyFormat =
+                !surveyPreferences ||
+                surveyPreferences.format === 'Неважно' ||
+                surveyPreferences.format === 'Другое' ||
+                place.format === surveyPreferences.format
+
+            const matchesSurveyCategory =
+                !surveyPreferences ||
+                surveyPreferences.category === 'Неважно' ||
+                surveyPreferences.category === 'Другое' ||
+                place.category === surveyPreferences.category
+
+            const matchesSurveyPrice =
+                !surveyPreferences ||
+                surveyPreferences.price === 'Неважно' ||
+                surveyPreferences.price === 'Другое' ||
+                place.price === surveyPreferences.price
+
+            /*
+             * РУЧНЫЕ ФИЛЬТРЫ НА ГЛАВНОЙ
+             */
+
             const matchesCategory =
                 !category || place.category === category
 
@@ -35,15 +88,23 @@ export default function HomePage({
                 !rating || place.rating >= Number(rating)
 
             return (
+                matchesSurveyAtmosphere &&
+                matchesSurveyFormat &&
+                matchesSurveyCategory &&
+                matchesSurveyPrice &&
                 matchesCategory &&
                 matchesPrice &&
                 matchesRating
             )
         })
-    }, [category, price, rating])
+    }, [
+        surveyPreferences,
+        category,
+        price,
+        rating,
+    ])
 
     function handleLogout() {
-        logout()
         onLogout()
         navigate('/auth')
     }
@@ -52,6 +113,12 @@ export default function HomePage({
         setCategory('')
         setPrice('')
         setRating('')
+
+        localStorage.removeItem(
+            `pickzy_preferences_${user.id}`,
+        )
+
+        setSurveyPreferences(null)
     }
 
     return (
@@ -105,11 +172,12 @@ export default function HomePage({
                     ) : (
                         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
                             <h2 className="text-xl font-bold text-slate-800">
-                                Ничего не найдено
+                                По вашим предпочтениям ничего не найдено
                             </h2>
 
                             <p className="mt-2 text-sm text-slate-500">
-                                Попробуйте изменить параметры фильтра.
+                                Попробуйте изменить ответы опроса или
+                                параметры фильтра.
                             </p>
 
                             <button
@@ -117,12 +185,11 @@ export default function HomePage({
                                 onClick={resetFilters}
                                 className="mt-5 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white hover:bg-blue-700"
                             >
-                                Сбросить фильтры
+                                Сбросить все фильтры
                             </button>
                         </div>
                     )}
                 </section>
             </main>
         </div>
-    )
-}
+    )}

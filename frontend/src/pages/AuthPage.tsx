@@ -16,7 +16,10 @@ import {
 type Mode = 'register' | 'login'
 
 type AuthPageProps = {
-    onAuthenticated: (user: User) => void
+    onAuthenticated: (
+        user: User,
+        isNewRegistration: boolean,
+    ) => void
 }
 
 export default function AuthPage({
@@ -39,7 +42,9 @@ export default function AuthPage({
 
         getCurrentUser(token)
             .then((currentUser) => {
-                onAuthenticated(currentUser)
+                // Пользователь уже был авторизован ранее.
+                // Это не новая регистрация.
+                onAuthenticated(currentUser, false)
                 navigate('/home', { replace: true })
             })
             .catch(() => {
@@ -56,31 +61,39 @@ export default function AuthPage({
 
         try {
             if (mode === 'register') {
+                // 1. Регистрируем нового пользователя
                 await registerUser({
                     email,
                     password,
                 })
 
+                // 2. Сразу выполняем вход
                 const tokenData = await loginUser({
                     email,
                     password,
                 })
 
+                // 3. Сохраняем токен
                 localStorage.setItem(
                     'access_token',
                     tokenData.access_token,
                 )
 
+                // 4. Получаем созданного пользователя
                 const currentUser = await getCurrentUser(
                     tokenData.access_token,
                 )
 
-                onAuthenticated(currentUser)
-                navigate('/home', { replace: true })
+                // 5. Сообщаем App, что это НОВАЯ регистрация
+                onAuthenticated(currentUser, true)
+
+                // 6. После регистрации открываем опрос
+                navigate('/survey', { replace: true })
 
                 return
             }
 
+            // Обычный вход существующего пользователя
             const tokenData = await loginUser({
                 email,
                 password,
@@ -95,7 +108,10 @@ export default function AuthPage({
                 tokenData.access_token,
             )
 
-            onAuthenticated(currentUser)
+            // Это НЕ новая регистрация
+            onAuthenticated(currentUser, false)
+
+            // При обычном входе сразу идём на главную
             navigate('/home', { replace: true })
         } catch (error) {
             setMessage(

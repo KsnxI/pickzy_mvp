@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
+import type { UserPreferences } from './data/preferences'
+
 import {
     BrowserRouter,
     Navigate,
@@ -16,10 +18,12 @@ import {
 import AuthPage from './pages/AuthPage'
 import HomePage from './pages/HomePage'
 import PlacePage from './pages/PlacePage'
+import SurveyPage from './pages/SurveyPage'
 
 function App() {
     const [user, setUser] = useState<User | null>(null)
     const [isCheckingAuth, setIsCheckingAuth] = useState(true)
+    const [showSurvey, setShowSurvey] = useState(false)
 
     useEffect(() => {
         const token = getToken()
@@ -32,10 +36,12 @@ function App() {
         getCurrentUser(token)
             .then((currentUser) => {
                 setUser(currentUser)
+                setShowSurvey(false)
             })
             .catch(() => {
                 logout()
                 setUser(null)
+                setShowSurvey(false)
             })
             .finally(() => {
                 setIsCheckingAuth(false)
@@ -43,15 +49,33 @@ function App() {
     }, [])
 
     const handleAuthenticated = useCallback(
-        (currentUser: User) => {
+        (
+            currentUser: User,
+            isNewRegistration: boolean,
+        ) => {
             setUser(currentUser)
+            setShowSurvey(isNewRegistration)
         },
         [],
     )
 
+    function handleSurveyComplete(
+        preferences: UserPreferences | null,
+    ) {
+        if (preferences && user) {
+            localStorage.setItem(
+                `pickzy_preferences_${user.id}`,
+                JSON.stringify(preferences),
+            )
+        }
+
+        setShowSurvey(false)
+    }
+
     function handleLogout() {
         logout()
         setUser(null)
+        setShowSurvey(false)
     }
 
     if (isCheckingAuth) {
@@ -70,10 +94,21 @@ function App() {
                 <Route
                     path="/"
                     element={
-                        <Navigate
-                            to={user ? '/home' : '/auth'}
-                            replace
-                        />
+                        user ? (
+                            <Navigate
+                                to={
+                                    showSurvey
+                                        ? '/survey'
+                                        : '/home'
+                                }
+                                replace
+                            />
+                        ) : (
+                            <Navigate
+                                to="/auth"
+                                replace
+                            />
+                        )
                     }
                 />
 
@@ -82,7 +117,11 @@ function App() {
                     element={
                         user ? (
                             <Navigate
-                                to="/home"
+                                to={
+                                    showSurvey
+                                        ? '/survey'
+                                        : '/home'
+                                }
                                 replace
                             />
                         ) : (
@@ -90,6 +129,28 @@ function App() {
                                 onAuthenticated={
                                     handleAuthenticated
                                 }
+                            />
+                        )
+                    }
+                />
+
+                <Route
+                    path="/survey"
+                    element={
+                        user && showSurvey ? (
+                            <SurveyPage
+                                onComplete={
+                                    handleSurveyComplete
+                                }
+                            />
+                        ) : (
+                            <Navigate
+                                to={
+                                    user
+                                        ? '/home'
+                                        : '/auth'
+                                }
+                                replace
                             />
                         )
                     }
@@ -118,7 +179,10 @@ function App() {
                         user ? (
                             <PlacePage />
                         ) : (
-                            <Navigate to="/auth" replace />
+                            <Navigate
+                                to="/auth"
+                                replace
+                            />
                         )
                     }
                 />
@@ -127,7 +191,13 @@ function App() {
                     path="*"
                     element={
                         <Navigate
-                            to={user ? '/home' : '/auth'}
+                            to={
+                                user
+                                    ? showSurvey
+                                        ? '/survey'
+                                        : '/home'
+                                    : '/auth'
+                            }
                             replace
                         />
                     }

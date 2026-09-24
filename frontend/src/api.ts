@@ -16,6 +16,17 @@ export type TokenResponse = {
     token_type: string;
 };
 
+export type Place = {
+    id: number;
+    name: string;
+    description: string | null;
+    category: string;
+    rating: number | null;
+    price: string | null;
+    address: string;
+    image: string | null;
+};
+
 async function getErrorMessage(response: Response): Promise<string> {
     const data = await response.json().catch(() => null);
 
@@ -70,6 +81,26 @@ export async function getCurrentUser(token: string): Promise<User> {
             Authorization: `Bearer ${token}`,
         },
     });
+
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+    }
+
+    return response.json();
+}
+
+export async function getPlaces(): Promise<Place[]> {
+    const response = await fetch(`${API_URL}/places`);
+
+    if (!response.ok) {
+        throw new Error(await getErrorMessage(response));
+    }
+
+    return response.json();
+}
+
+export async function getPlace(placeId: number): Promise<Place> {
+    const response = await fetch(`${API_URL}/places/${placeId}`);
 
     if (!response.ok) {
         throw new Error(await getErrorMessage(response));

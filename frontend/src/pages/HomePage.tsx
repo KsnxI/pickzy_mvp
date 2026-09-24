@@ -1,124 +1,113 @@
-import { useMemo, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
-import FilterDropdown from '../components/FilterDropdown'
-import Header from '../components/Header'
-import PlaceCard from '../components/PlaceCard'
-import { places } from '../data/places'
-import type { User } from '../api'
-import type { UserPreferences } from '../data/preferences'
+import FilterDropdown from '../components/FilterDropdown';
+import Header from '../components/Header';
+import PlaceCard from '../components/PlaceCard';
+import { getPlaces, type Place, type User } from '../api';
+import type { UserPreferences } from '../data/preferences';
 
 type HomePageProps = {
-    user: User
-    onLogout: () => void
-}
+    user: User;
+    onLogout: () => void;
+};
 
 export default function HomePage({
                                      user,
                                      onLogout,
                                  }: HomePageProps) {
-    const navigate = useNavigate()
+    const navigate = useNavigate();
 
-    const [category, setCategory] = useState('')
-    const [price, setPrice] = useState('')
-    const [rating, setRating] = useState('')
+    const [places, setPlaces] = useState<Place[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
+
+    const [category, setCategory] = useState('');
+    const [price, setPrice] = useState('');
+    const [rating, setRating] = useState('');
 
     const [surveyPreferences, setSurveyPreferences] =
         useState<UserPreferences | null>(() => {
             const savedPreferences = localStorage.getItem(
                 `pickzy_preferences_${user.id}`,
-            )
+            );
 
             if (!savedPreferences) {
-                return null
+                return null;
             }
 
             try {
-                return JSON.parse(savedPreferences) as UserPreferences
+                return JSON.parse(savedPreferences) as UserPreferences;
             } catch {
-                return null
+                return null;
             }
-        })
+        });
+
+    useEffect(() => {
+        getPlaces()
+            .then((data) => {
+                setPlaces(data);
+                setLoadError('');
+            })
+            .catch((error) => {
+                setLoadError(
+                    error instanceof Error
+                        ? error.message
+                        : 'Не удалось загрузить список мест.',
+                );
+            })
+            .finally(() => {
+                setIsLoading(false);
+            });
+    }, []);
 
     const filteredPlaces = useMemo(() => {
         return places.filter((place) => {
             /*
-             * ФИЛЬТРЫ ИЗ ОПРОСА
-             *
-             * Если пользователь выбрал:
-             * "Неважно" или "Другое" —
-             * этот конкретный параметр не фильтруется.
+             * Опрос пока не влияет на API, потому что backend не содержит
+             * atmosphere и format. Категория и цена из опроса могут применяться,
+             * так как такие поля есть у реального Place.
              */
-
-            const matchesSurveyAtmosphere =
-                !surveyPreferences ||
-                surveyPreferences.atmosphere === 'Неважно' ||
-                surveyPreferences.atmosphere === 'Другое' ||
-                place.atmosphere === surveyPreferences.atmosphere
-
-            const matchesSurveyFormat =
-                !surveyPreferences ||
-                surveyPreferences.format === 'Неважно' ||
-                surveyPreferences.format === 'Другое' ||
-                place.format === surveyPreferences.format
-
             const matchesSurveyCategory =
                 !surveyPreferences ||
                 surveyPreferences.category === 'Неважно' ||
                 surveyPreferences.category === 'Другое' ||
-                place.category === surveyPreferences.category
+                place.category === surveyPreferences.category;
 
             const matchesSurveyPrice =
                 !surveyPreferences ||
                 surveyPreferences.price === 'Неважно' ||
                 surveyPreferences.price === 'Другое' ||
-                place.price === surveyPreferences.price
+                place.price === surveyPreferences.price;
 
-            /*
-             * РУЧНЫЕ ФИЛЬТРЫ НА ГЛАВНОЙ
-             */
-
-            const matchesCategory =
-                !category || place.category === category
-
-            const matchesPrice =
-                !price || place.price === price
-
+            const matchesCategory = !category || place.category === category;
+            const matchesPrice = !price || place.price === price;
             const matchesRating =
-                !rating || place.rating >= Number(rating)
+                !rating ||
+                (place.rating !== null && place.rating >= Number(rating));
 
             return (
-                matchesSurveyAtmosphere &&
-                matchesSurveyFormat &&
                 matchesSurveyCategory &&
                 matchesSurveyPrice &&
                 matchesCategory &&
                 matchesPrice &&
                 matchesRating
-            )
-        })
-    }, [
-        surveyPreferences,
-        category,
-        price,
-        rating,
-    ])
+            );
+        });
+    }, [places, surveyPreferences, category, price, rating]);
 
     function handleLogout() {
-        onLogout()
-        navigate('/auth')
+        onLogout();
+        navigate('/auth');
     }
 
     function resetFilters() {
-        setCategory('')
-        setPrice('')
-        setRating('')
+        setCategory('');
+        setPrice('');
+        setRating('');
 
-        localStorage.removeItem(
-            `pickzy_preferences_${user.id}`,
-        )
-
-        setSurveyPreferences(null)
+        localStorage.removeItem(`pickzy_preferences_${user.id}`);
+        setSurveyPreferences(null);
     }
 
     return (
@@ -138,8 +127,7 @@ export default function HomePage({
                             </h1>
 
                             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-                                Места и идеи для отдыха, которые можно
-                                посмотреть прямо сейчас.
+                                Места и идеи для отдыха, которые можно посмотреть прямо сейчас.
                             </p>
 
                             <p className="mt-2 text-sm font-medium text-slate-400">
@@ -160,24 +148,40 @@ export default function HomePage({
                 </section>
 
                 <section className="mt-8">
-                    {filteredPlaces.length > 0 ? (
+                    {isLoading && (
+                        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-16 text-center">
+                            <p className="text-sm font-medium text-slate-500">
+                                Загружаем места...
+                            </p>
+                        </div>
+                    )}
+
+                    {!isLoading && loadError && (
+                        <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-16 text-center">
+                            <h2 className="text-xl font-bold text-red-800">
+                                Не удалось загрузить места
+                            </h2>
+
+                            <p className="mt-2 text-sm text-red-600">{loadError}</p>
+                        </div>
+                    )}
+
+                    {!isLoading && !loadError && filteredPlaces.length > 0 && (
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                             {filteredPlaces.map((place) => (
-                                <PlaceCard
-                                    key={place.id}
-                                    place={place}
-                                />
+                                <PlaceCard key={place.id} place={place} />
                             ))}
                         </div>
-                    ) : (
+                    )}
+
+                    {!isLoading && !loadError && filteredPlaces.length === 0 && (
                         <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-6 py-16 text-center">
                             <h2 className="text-xl font-bold text-slate-800">
                                 По вашим предпочтениям ничего не найдено
                             </h2>
 
                             <p className="mt-2 text-sm text-slate-500">
-                                Попробуйте изменить ответы опроса или
-                                параметры фильтра.
+                                Попробуйте изменить ответы опроса или параметры фильтра.
                             </p>
 
                             <button
@@ -192,4 +196,5 @@ export default function HomePage({
                 </section>
             </main>
         </div>
-    )}
+    );
+}

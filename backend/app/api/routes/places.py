@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.routes.auth import get_db
@@ -32,6 +32,24 @@ def get_places(
 
     return query.order_by(Place.rating.desc()).all()
 
+@router.get("/{place_id}", response_model=PlaceResponse)
+def get_place(
+    place_id: int,
+    db: Session = Depends(get_db),
+):
+    place = (
+        db.query(Place)
+        .filter(Place.id == place_id)
+        .first()
+    )
+
+    if place is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Place not found",
+        )
+
+    return place
 
 @router.post(
     "",

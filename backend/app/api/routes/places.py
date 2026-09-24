@@ -67,3 +67,23 @@ def create_place(
     db.refresh(place)
 
     return place
+
+@router.delete("/{place_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_place(
+        place_id: int,
+        db: Session = Depends(get_db),
+):
+    place = (
+        db.query(Place)
+        .filter(Place.id == place_id)
+        .first()
+    )
+
+    if place is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Place not found",
+        )
+
+    db.delete(place)
+    db.commit()

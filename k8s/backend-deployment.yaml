@@ -1,0 +1,25 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pickzy-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pickzy-backend
+  template:
+    metadata:
+      labels:
+        app: pickzy-backend
+    spec:
+      containers:
+        - name: backend
+          image: pickzy_mvp-backend
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: pickzy-config
+            - secretRef:
+                name: pickzy-secret

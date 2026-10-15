@@ -1,0 +1,20 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pickzy-frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pickzy-frontend
+  template:
+    metadata:
+      labels:
+        app: pickzy-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: pickzy_mvp-frontend
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5173

@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: pickzy_mvp-backend:health-v1
+          image: pickzy_mvp-backend:metrics-v2
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8000

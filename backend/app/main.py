@@ -1,11 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from prometheus_fastapi_instrumentator import Instrumentator
 from app.api.routes.auth import router as auth_router
 from app.api.routes.places import router as places_router
 
 
 app = FastAPI()
+Instrumentator().instrument(app).expose(app)
 @app.get("/health")
 def health_check():
     return {"status": "healthy"}
